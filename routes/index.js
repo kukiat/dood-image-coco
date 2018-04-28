@@ -1,14 +1,15 @@
 const express = require('express')
-const scrap = require('../scrap')
+const { dood } = require('../scrap')
+const { respondResult, respondError } = require('../utils/response')
 
 const router = express.Router()
 
 router.post('/loadImage', async (req, res, next) => {
   try {
-    const images = await scrap.dood(req.body.category)
-    res.status(200).send(images)
+    const images = await dood(req.body.category)
+    respondResult(res)(images)
   }catch(err) {
-    res.status(err.status || 400).send(err.message || err)
+    respondError(res)(err)
   }
 })
 

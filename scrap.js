@@ -1,6 +1,7 @@
 const axios = require('axios')
 const fs = require('fs')
 const bed = require('./imageId/bed')
+const { customError } = require('./utils/custom')
 
 const findCategory = (category) => {
   const categorys = {
@@ -19,29 +20,29 @@ const findCategory = (category) => {
   }
   const categoryID = categorys[category]
   if(categoryID === -1 || !categoryID) 
-    return Promise.reject(new Error('not found category'))
+    return Promise.reject(customError(400, 'Not found category'))
   return Promise.resolve(categoryID)
 }
 
 const loadImageIdWithCategory = (categoryID) => {
-  const req = { "category_ids": [categoryID], querytype: "getImagesByCats" }
-  axios.post('https://us-central1-open-images-dataset.cloudfunctions.net/coco-dataset-bigquery', req)
-  .then(imageIds => Promise.resolve(imageIds))
-  .catch(err => Promise.reject(err))
+  return new Promise((resolve, reject) => {
+    const body = { category_ids: [categoryID], querytype: "getImagesByCats" }
+    axios.post('https://us-central1-open-images-dataset.cloudfunctions.net/coco-dataset-bigquery', body)
+      .then(res => resolve(res.data))
+      .catch(err => reject(err))
+  })
 }
 
 const loadImageData = (imageIds) => {
-  const req= { "image_ids": imageIds, "querytype": "getImages" };
-  axios.post('https://us-central1-open-images-dataset.cloudfunctions.net/coco-dataset-bigquery', req)
-  .then((res) => {
-    const allImg = res.data.map(x => ({url: x.flickr_url}))
-    return Promise.resolve(allImg)
-    // writeFile(allImg, (err) => {
-    //   if(err) console.log(err)
-    //   console.log(res)
-    // })
+  return new Promise((resolve, reject) => {
+    const body = { image_ids: imageIds, querytype: "getImages" }
+    axios.post('https://us-central1-open-images-dataset.cloudfunctions.net/coco-dataset-bigquery', body)
+      .then((res) => {
+        const allImg = res.data.map(x => ({url: x.flickr_url}))
+        return resolve(allImg)
+      })
+      .catch(err => reject(err))
   })
-  .catch(err => Promise.reject(err))
 }
 
 function writeFile(allImg, cb) {
@@ -53,13 +54,11 @@ function writeFile(allImg, cb) {
 
 module.exports = {
   dood: (category) => {
-    findCategory(category)
-    .then(loadImageIdWithCategory)
-    .then(loadImageData)
-    .then(images => {
-      return Promise.resolve(images)
-    })
-    .catch(err => Promise.reject(err))
+    return findCategory(category)
+      .then(loadImageIdWithCategory)
+      .then(loadImageData)
+      .then(images => Promise.resolve(images))
+      .catch(err => Promise.reject(err))
   }
 }
 // loadImageData(bed.data)
